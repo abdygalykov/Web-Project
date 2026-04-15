@@ -5,8 +5,8 @@ import { CategoryService } from './category';
 function generateMockTransactions(): Transaction[] {
   const now = new Date();
   const transactions: Transaction[] = [];
-  const incomeDescs = ['Зарплата за месяц', 'Оплата проекта', 'Дивиденды', 'Подарок'];
-  const expenseDescs = ['Супермаркет', 'Такси', 'Кино', 'Электричество', 'Аптека', 'Футболка', 'Курсы', 'Ресторан'];
+  const incomeDescs = ['Month salary', 'Project expense', 'Dividends', 'Gift'];
+  const expenseDescs = ['Supermarket', 'Taxi', 'Movie', 'Electricity', 'Pharmacy', 'T-shirt', 'Courses', 'Restaurant'];
 
   for (let i = 0; i < 30; i++) {
     const d = new Date(now);
@@ -58,7 +58,7 @@ export class TransactionService {
       const cat = this.catService.getById(t.category_id);
       return {
         ...t,
-        category_name: cat?.name ?? 'Без категории',
+        category_name: cat?.name ?? 'No category',
         category_icon: cat?.icon ?? '❓',
         category_color: cat?.color ?? '#94a3b8'
       };
