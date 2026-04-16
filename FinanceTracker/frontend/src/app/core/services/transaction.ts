@@ -54,13 +54,14 @@ export class TransactionService {
   }
 
   getWithCategory(): (Transaction & { category_name: string; category_icon: string; category_color: string })[] {
-    return this._transactions().map(t => {
-      const cat = this.catService.getById(t.category_id);
-      return {
-        ...t,
-        category_name: cat?.name ?? 'No category',
-        category_icon: cat?.icon ?? '❓',
-        category_color: cat?.color ?? '#94a3b8'
+  return this._transactions().map(t => {
+    const cat = this.catService.getById(t.category_id);
+    const anyT = t as any;
+    return {
+      ...t,
+      category_name: anyT.category_name || cat?.name || 'No category',
+      category_icon: anyT.category_icon || cat?.icon || '❓',
+      category_color: anyT.category_color || cat?.color || '#94a3b8',
       };
     });
   }

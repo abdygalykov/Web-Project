@@ -1,4 +1,4 @@
-import { Component, signal } from '@angular/core';
+import { Component, signal, effect } from '@angular/core';
 import { RouterLink, RouterLinkActive } from '@angular/router';
 
 interface NavItem {
@@ -22,6 +22,12 @@ export class Sidebar {
     { label: 'Budgets', route: '/budgets', icon: '🎯' },
     { label: 'Categories', route: '/categories', icon: '🏷️' },
   ];
+
+  constructor() {
+    effect(() => {
+      document.body.classList.toggle('sidebar-collapsed', this.collapsed());
+    });
+  }
 
   toggle(): void {
     this.collapsed.update(v => !v);
