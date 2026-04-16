@@ -4,7 +4,6 @@
     <button class="btn btn-primary" (click)="openAdd()">+ Add</button>
   </div>
 
-  <!-- Filters -->
   <div class="filters card">
     <div class="filter-tabs">
       <button class="tab" [class.active]="filterType() === 'all'" (click)="setFilter('all')">All</button>
@@ -14,7 +13,6 @@
     <input type="text" placeholder="Searching by description or category..." [ngModel]="searchQuery()" (ngModelChange)="setSearch($event)" class="search-input" />
   </div>
 
-  <!-- Table -->
   <div class="card table-wrap">
     <table>
       <thead>
@@ -57,7 +55,7 @@
   </div>
 </div>
 
-<!-- Modal -->
+
 @if (showForm()) {
   <div class="modal-overlay" (click)="closeForm()">
     <div class="modal" (click)="$event.stopPropagation()">

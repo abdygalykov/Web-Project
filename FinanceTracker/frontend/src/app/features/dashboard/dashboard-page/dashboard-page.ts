@@ -72,7 +72,7 @@ export class DashboardPage implements AfterViewInit {
       const incomeH = (d.income / maxVal) * chartH;
       const expenseH = (d.expense / maxVal) * chartH;
 
-      // Income bar
+
       ctx.fillStyle = '#22c55e';
       ctx.beginPath();
       const ix = x + gap;
@@ -80,7 +80,7 @@ export class DashboardPage implements AfterViewInit {
       roundRect(ctx, ix, iy, barW, incomeH, 4);
       ctx.fill();
 
-      // Expense bar
+
       ctx.fillStyle = '#ef4444';
       ctx.beginPath();
       const ex = x + gap + barW + 4;
@@ -88,14 +88,12 @@ export class DashboardPage implements AfterViewInit {
       roundRect(ctx, ex, ey, barW, expenseH, 4);
       ctx.fill();
 
-      // Label
       ctx.fillStyle = '#94a3b8';
       ctx.font = '11px Inter, sans-serif';
       ctx.textAlign = 'center';
       ctx.fillText(d.label, x + barGroupW / 2, h - pad.bottom + 20);
     });
 
-    // Grid lines
     ctx.strokeStyle = '#334155';
     ctx.lineWidth = 0.5;
     for (let i = 0; i <= 4; i++) {
@@ -136,13 +134,12 @@ export class DashboardPage implements AfterViewInit {
       angle += slice;
     });
 
-    // Donut hole
     ctx.beginPath();
     ctx.arc(cx, cy, r * 0.55, 0, Math.PI * 2);
     ctx.fillStyle = '#1e293b';
     ctx.fill();
 
-    // Legend
+
     const legendX = w * 0.65;
     let legendY = 20;
     ctx.font = '11px Inter, sans-serif';
