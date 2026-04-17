@@ -26,8 +26,8 @@ This project uses **Angular** for the frontend and **Django** for the backend, p
 ---
 
 ## Team members
-- Abenov Altair
-- Siyazbekov Didar
+- Abdygalykov Dinmuhamed
+- Olzhas
 
 ### Clone the repository
 ```bash
