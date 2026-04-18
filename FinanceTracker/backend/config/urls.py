@@ -15,11 +15,30 @@ Including another URLconf
     2. Add a URL to urlpatterns:  path('blog/', include('blog.urls'))
 """
 from django.contrib import admin
+from django.http import JsonResponse
+from django.http import Http404
 from django.urls import path, include
+from django.views.generic import TemplateView
+
+
+class FrontendAppView(TemplateView):
+    template_name = 'index.html'
+
+    def get_template_names(self):
+        if not self.template_name:
+            raise Http404
+        return [self.template_name]
+
+
+def healthcheck(_request):
+    return JsonResponse({'status': 'ok'})
 
 urlpatterns = [
     path('admin/', admin.site.urls),
+    path('api/health/', healthcheck),
     path('api/auth/', include('accounts.urls')),
     path('api/', include('transactions.urls')),
     path('api/', include('budgets.urls')),
+    path('', FrontendAppView.as_view()),
+    path('<path:path>', FrontendAppView.as_view()),
 ]

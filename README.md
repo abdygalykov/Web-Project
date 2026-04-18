@@ -35,28 +35,30 @@ git clone https://github.com/username/finance-tracker.git
 cd finance-tracker
 ```
 
-## Public link for the site
+## Full-stack deployment
 
-The frontend can be published automatically to GitHub Pages after a push to `main`.
+The repository is now prepared for a single full-stack deploy:
 
-Expected public URL:
+- Angular frontend is built inside the Docker image
+- Django serves both `/api/...` and the Angular app from the same domain
+- PostgreSQL is provisioned through `render.yaml`
 
-```bash
-https://abdygalykov.github.io/Web-Project/
-```
+### Recommended deploy target
 
-### What changed
+Render blueprint from the repo root:
 
-- Added `.github/workflows/deploy-pages.yml` for automatic deployment
-- Added Angular hash routing for correct work on static hosting
-- Added `npm run build:pages` for GitHub Pages build
+- [render.yaml](/Users/dimashabdygalykov/Desktop/Web-Project/Web-Project/render.yaml)
+- [Dockerfile](/Users/dimashabdygalykov/Desktop/Web-Project/Web-Project/Dockerfile)
 
-### How to enable it once on GitHub
+### What the single deploy does
 
-1. Push the latest changes to the `main` branch.
-2. Open repository `Settings` on GitHub.
-3. Go to `Pages`.
-4. In `Build and deployment`, choose `GitHub Actions`.
-5. Wait until the `Deploy GitHub Pages` workflow finishes.
+1. Builds Angular in Docker
+2. Copies the compiled frontend into the Django app
+3. Runs Django migrations
+4. Serves the whole site from one public URL
 
-After that, the site will be available by the public link above and you will no longer need to show it from your local terminal.
+### Local architecture now
+
+- Frontend uses real Django API via `/api`
+- JWT auth is used for login/register/session
+- Django can serve the compiled Angular build directly

@@ -1,11 +1,13 @@
 import { ApplicationConfig, provideBrowserGlobalErrorListeners } from '@angular/core';
-import { provideRouter, withHashLocation } from '@angular/router';
+import { provideHttpClient, withInterceptors } from '@angular/common/http';
+import { provideRouter } from '@angular/router';
 import { routes } from './app.routes';
+import { authInterceptor } from './core/services/auth-interceptor';
 
 export const appConfig: ApplicationConfig = {
   providers: [
     provideBrowserGlobalErrorListeners(),
-    // Hash routing keeps deep links working on static hosting such as GitHub Pages.
-    provideRouter(routes, withHashLocation()),
+    provideHttpClient(withInterceptors([authInterceptor])),
+    provideRouter(routes),
   ]
 };

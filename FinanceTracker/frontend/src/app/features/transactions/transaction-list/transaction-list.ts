@@ -82,6 +82,8 @@ export class TransactionList {
         category_id: this.formCategoryId,
         description: this.formDescription,
         date: this.formDate,
+      }).subscribe(updated => {
+        if (updated) this.showForm.set(false);
       });
     } else {
       this.txnService.add({
@@ -90,12 +92,13 @@ export class TransactionList {
         category_id: this.formCategoryId,
         description: this.formDescription,
         date: this.formDate,
+      }).subscribe(created => {
+        if (created) this.showForm.set(false);
       });
     }
-    this.showForm.set(false);
   }
 
   deleteTxn(id: number): void {
-    this.txnService.delete(id);
+    this.txnService.delete(id).subscribe();
   }
 }

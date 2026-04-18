@@ -38,11 +38,12 @@ export class CategoryList {
       type: this.formType,
       icon: this.formIcon,
       color: this.formColor,
+    }).subscribe(category => {
+      if (category) this.showForm.set(false);
     });
-    this.showForm.set(false);
   }
 
   deleteCategory(id: number): void {
-    this.catService.delete(id);
+    this.catService.delete(id).subscribe();
   }
 }

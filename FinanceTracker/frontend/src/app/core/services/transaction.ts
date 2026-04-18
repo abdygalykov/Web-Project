@@ -1,39 +1,24 @@
-import { Injectable, signal, computed } from '@angular/core';
+import { Injectable, computed, effect, inject, signal } from '@angular/core';
+import { HttpClient } from '@angular/common/http';
+import { catchError, map, Observable, of, tap } from 'rxjs';
 import { Transaction } from '../models/transaction';
 import { CategoryService } from './category';
+import { AuthService } from './auth';
+import { API_BASE_URL } from './api';
 
-function generateMockTransactions(): Transaction[] {
-  const now = new Date();
-  const transactions: Transaction[] = [];
-  const incomeDescs = ['Month salary', 'Project expense', 'Dividends', 'Gift'];
-  const expenseDescs = ['Supermarket', 'Taxi', 'Movie', 'Electricity', 'Pharmacy', 'T-shirt', 'Courses', 'Restaurant'];
 
-  for (let i = 0; i < 30; i++) {
-    const d = new Date(now);
-    d.setDate(d.getDate() - Math.floor(Math.random() * 90));
-    const isIncome = Math.random() > 0.65;
-    transactions.push({
-      id: i + 1,
-      amount: isIncome
-        ? Math.round((Math.random() * 400000 + 100000))
-        : Math.round((Math.random() * 50000 + 1000)),
-      type: isIncome ? 'income' : 'expense',
-      category_id: isIncome
-        ? Math.ceil(Math.random() * 4)
-        : Math.ceil(Math.random() * 8) + 4,
-      description: isIncome
-        ? incomeDescs[Math.floor(Math.random() * incomeDescs.length)]
-        : expenseDescs[Math.floor(Math.random() * expenseDescs.length)],
-      date: d.toISOString().split('T')[0],
-      created_at: d.toISOString()
-    });
-  }
-  return transactions.sort((a, b) => b.date.localeCompare(a.date));
-}
+type TransactionWithCategory = Transaction & {
+  category_name: string;
+  category_icon: string;
+  category_color: string;
+};
 
 @Injectable({ providedIn: 'root' })
 export class TransactionService {
-  private _transactions = signal<Transaction[]>(this.load());
+  private http = inject(HttpClient);
+  private auth = inject(AuthService);
+  private catService = inject(CategoryService);
+  private _transactions = signal<Transaction[]>([]);
 
   transactions = this._transactions.asReadonly();
 
@@ -47,44 +32,65 @@ export class TransactionService {
 
   balance = computed(() => this.totalIncome() - this.totalExpense());
 
-  constructor(private catService: CategoryService) {}
+  constructor() {
+    effect(() => {
+      if (this.auth.isLoggedIn()) {
+        this.load().subscribe();
+      } else {
+        this._transactions.set([]);
+      }
+    });
+  }
+
+  load(): Observable<Transaction[]> {
+    return this.http.get<Transaction[]>(`${API_BASE_URL}/transactions/`).pipe(
+      map(transactions => transactions.map(transaction => this.normalize(transaction))),
+      tap(transactions => this._transactions.set(transactions)),
+      catchError(() => {
+        this._transactions.set([]);
+        return of([]);
+      }),
+    );
+  }
 
   getAll(): Transaction[] {
     return this._transactions();
   }
 
-  getWithCategory(): (Transaction & { category_name: string; category_icon: string; category_color: string })[] {
-  return this._transactions().map(t => {
-    const cat = this.catService.getById(t.category_id);
-    const anyT = t as any;
-    return {
-      ...t,
-      category_name: anyT.category_name || cat?.name || 'No category',
-      category_icon: anyT.category_icon || cat?.icon || '❓',
-      category_color: anyT.category_color || cat?.color || '#94a3b8',
+  getWithCategory(): TransactionWithCategory[] {
+    return this._transactions().map(t => {
+      const cat = this.catService.getById(t.category_id);
+      return {
+        ...t,
+        category_name: t.category_name || cat?.name || 'No category',
+        category_icon: t.category_icon || cat?.icon || '❓',
+        category_color: t.category_color || cat?.color || '#94a3b8',
       };
     });
   }
 
-  add(t: Omit<Transaction, 'id' | 'created_at'>): Transaction {
-    const all = this._transactions();
-    const newT: Transaction = { ...t, id: Math.max(0, ...all.map(x => x.id)) + 1, created_at: new Date().toISOString() };
-    const updated = [newT, ...all].sort((a, b) => b.date.localeCompare(a.date));
-    this._transactions.set(updated);
-    this.save(updated);
-    return newT;
+  add(t: Omit<Transaction, 'id' | 'created_at'>): Observable<Transaction | null> {
+    return this.http.post<Transaction>(`${API_BASE_URL}/transactions/`, t).pipe(
+      map(transaction => this.normalize(transaction)),
+      tap(transaction => this._transactions.update(all => [transaction, ...all])),
+      catchError(() => of(null)),
+    );
   }
 
-  update(t: Transaction): void {
-    const updated = this._transactions().map(x => x.id === t.id ? { ...t } : x);
-    this._transactions.set(updated);
-    this.save(updated);
+  update(t: Transaction): Observable<Transaction | null> {
+    return this.http.put<Transaction>(`${API_BASE_URL}/transactions/${t.id}/`, t).pipe(
+      map(transaction => this.normalize(transaction)),
+      tap(transaction => this._transactions.update(all => all.map(item => item.id === t.id ? transaction : item))),
+      catchError(() => of(null)),
+    );
   }
 
-  delete(id: number): void {
-    const updated = this._transactions().filter(x => x.id !== id);
-    this._transactions.set(updated);
-    this.save(updated);
+  delete(id: number): Observable<boolean> {
+    return this.http.delete(`${API_BASE_URL}/transactions/${id}/`).pipe(
+      map(() => true),
+      tap(() => this._transactions.update(all => all.filter(t => t.id !== id))),
+      catchError(() => of(false)),
+    );
   }
 
   getByMonth(year: number, month: number): Transaction[] {
@@ -96,22 +102,24 @@ export class TransactionService {
 
   getExpenseByCategory(year: number, month: number): { category_id: number; name: string; icon: string; color: string; total: number }[] {
     const txns = this.getByMonth(year, month).filter(t => t.type === 'expense');
-    const map = new Map<number, number>();
-    txns.forEach(t => map.set(t.category_id, (map.get(t.category_id) ?? 0) + t.amount));
-    return Array.from(map.entries()).map(([catId, total]) => {
-      const cat = this.catService.getById(catId);
-      return { category_id: catId, name: cat?.name ?? '?', icon: cat?.icon ?? '?', color: cat?.color ?? '#999', total };
+    const totals = new Map<number, number>();
+    txns.forEach(t => totals.set(t.category_id, (totals.get(t.category_id) ?? 0) + t.amount));
+    return Array.from(totals.entries()).map(([categoryId, total]) => {
+      const category = this.catService.getById(categoryId);
+      return {
+        category_id: categoryId,
+        name: category?.name ?? '?',
+        icon: category?.icon ?? '?',
+        color: category?.color ?? '#999',
+        total,
+      };
     }).sort((a, b) => b.total - a.total);
   }
 
-  private load(): Transaction[] {
-    try {
-      const s = sessionStorage.getItem('ft_transactions');
-      return s ? JSON.parse(s) : generateMockTransactions();
-    } catch { return generateMockTransactions(); }
-  }
-
-  private save(txns: Transaction[]): void {
-    try { sessionStorage.setItem('ft_transactions', JSON.stringify(txns)); } catch {}
+  private normalize(transaction: Transaction): Transaction {
+    return {
+      ...transaction,
+      amount: Number(transaction.amount),
+    };
   }
 }

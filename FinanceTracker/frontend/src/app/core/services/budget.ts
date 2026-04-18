@@ -1,71 +1,70 @@
-import { Injectable, signal } from '@angular/core';
+import { Injectable, effect, inject, signal } from '@angular/core';
+import { HttpClient } from '@angular/common/http';
+import { catchError, map, Observable, of, tap } from 'rxjs';
 import { Budget } from '../models/budget';
-import { CategoryService } from './category';
-import { TransactionService } from './transaction';
+import { AuthService } from './auth';
+import { API_BASE_URL } from './api';
 
-function generateMockBudgets(): Budget[] {
-  const now = new Date();
-  return [
-    { id: 1, category_id: 5, amount: 80000, spent: 0, month: now.getMonth(), year: now.getFullYear() },
-    { id: 2, category_id: 6, amount: 30000, spent: 0, month: now.getMonth(), year: now.getFullYear() },
-    { id: 3, category_id: 7, amount: 25000, spent: 0, month: now.getMonth(), year: now.getFullYear() },
-    { id: 4, category_id: 8, amount: 40000, spent: 0, month: now.getMonth(), year: now.getFullYear() },
-    { id: 5, category_id: 12, amount: 35000, spent: 0, month: now.getMonth(), year: now.getFullYear() },
-  ];
-}
 
 @Injectable({ providedIn: 'root' })
 export class BudgetService {
-  private _budgets = signal<Budget[]>(this.load());
+  private http = inject(HttpClient);
+  private auth = inject(AuthService);
+  private _budgets = signal<Budget[]>([]);
 
   budgets = this._budgets.asReadonly();
 
-  constructor(private catService: CategoryService, private txnService: TransactionService) {}
+  constructor() {
+    effect(() => {
+      if (this.auth.isLoggedIn()) {
+        this.load().subscribe();
+      } else {
+        this._budgets.set([]);
+      }
+    });
+  }
+
+  load(): Observable<Budget[]> {
+    return this.http.get<Budget[]>(`${API_BASE_URL}/budgets/`).pipe(
+      map(budgets => budgets.map(budget => this.normalize(budget))),
+      tap(budgets => this._budgets.set(budgets)),
+      catchError(() => {
+        this._budgets.set([]);
+        return of([]);
+      }),
+    );
+  }
 
   getAll(): Budget[] {
-    return this.withSpent(this._budgets());
+    return this._budgets();
   }
 
   getCurrentMonth(): Budget[] {
     const now = new Date();
-    return this.withSpent(
-      this._budgets().filter(b => b.month === now.getMonth() && b.year === now.getFullYear())
+    return this._budgets().filter(b => b.month === now.getMonth() && b.year === now.getFullYear());
+  }
+
+  add(budget: Omit<Budget, 'id' | 'spent' | 'category_name'>): Observable<Budget | null> {
+    return this.http.post<Budget>(`${API_BASE_URL}/budgets/`, budget).pipe(
+      map(item => this.normalize(item)),
+      tap(item => this._budgets.update(all => [...all, item])),
+      catchError(() => of(null)),
     );
   }
 
-  add(b: Omit<Budget, 'id' | 'spent'>): Budget {
-    const all = this._budgets();
-    const newB: Budget = { ...b, spent: 0, id: Math.max(0, ...all.map(x => x.id)) + 1 };
-    const updated = [...all, newB];
-    this._budgets.set(updated);
-    this.save(updated);
-    return newB;
+  delete(id: number): Observable<boolean> {
+    return this.http.delete(`${API_BASE_URL}/budgets/${id}/`).pipe(
+      map(() => true),
+      tap(() => this._budgets.update(all => all.filter(b => b.id !== id))),
+      catchError(() => of(false)),
+    );
   }
 
-  delete(id: number): void {
-    const updated = this._budgets().filter(b => b.id !== id);
-    this._budgets.set(updated);
-    this.save(updated);
-  }
-
-  private withSpent(budgets: Budget[]): Budget[] {
-    return budgets.map(b => {
-      const txns = this.txnService.getByMonth(b.year, b.month)
-        .filter(t => t.type === 'expense' && t.category_id === b.category_id);
-      const spent = txns.reduce((s, t) => s + t.amount, 0);
-      const cat = this.catService.getById(b.category_id);
-      return { ...b, spent, category_name: cat?.name ?? '?' };
-    });
-  }
-
-  private load(): Budget[] {
-    try {
-      const s = sessionStorage.getItem('ft_budgets');
-      return s ? JSON.parse(s) : generateMockBudgets();
-    } catch { return generateMockBudgets(); }
-  }
-
-  private save(b: Budget[]): void {
-    try { sessionStorage.setItem('ft_budgets', JSON.stringify(b)); } catch {}
+  private normalize(budget: Budget): Budget {
+    return {
+      ...budget,
+      amount: Number(budget.amount),
+      spent: Number(budget.spent),
+    };
   }
 }

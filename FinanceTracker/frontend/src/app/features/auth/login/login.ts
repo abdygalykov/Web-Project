@@ -13,6 +13,7 @@ export class Login {
   username = '';
   password = '';
   error = signal('');
+  loading = signal(false);
 
   constructor(private auth: AuthService, private router: Router) {
     if (auth.isLoggedIn()) this.router.navigate(['/dashboard']);
@@ -23,11 +24,14 @@ export class Login {
       this.error.set('Fill all the fields');
       return;
     }
-    const ok = this.auth.login({ username: this.username, password: this.password });
-    if (ok) {
-      this.router.navigate(['/dashboard']);
-    } else {
-      this.error.set('Invalid login or password. Try: demo');
-    }
+    this.loading.set(true);
+    this.auth.login({ username: this.username, password: this.password }).subscribe(ok => {
+      this.loading.set(false);
+      if (ok) {
+        this.router.navigate(['/dashboard']);
+      } else {
+        this.error.set('Invalid login or password');
+      }
+    });
   }
 }

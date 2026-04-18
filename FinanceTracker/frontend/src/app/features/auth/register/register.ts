@@ -17,6 +17,7 @@ export class Register {
   password = '';
   passwordConfirm = '';
   error = signal('');
+  loading = signal(false);
 
   constructor(private auth: AuthService, private router: Router) {
     if (auth.isLoggedIn()) this.router.navigate(['/dashboard']);
@@ -35,18 +36,21 @@ export class Register {
       this.error.set('Password should be at least 4 symbols long');
       return;
     }
-    const ok = this.auth.register({
+    this.loading.set(true);
+    this.auth.register({
       username: this.username,
       email: this.email,
       password: this.password,
       password_confirm: this.passwordConfirm,
       first_name: this.firstName || this.username,
       last_name: this.lastName || '',
+    }).subscribe(ok => {
+      this.loading.set(false);
+      if (ok) {
+        this.router.navigate(['/dashboard']);
+      } else {
+        this.error.set('User with the same username or email already exists');
+      }
     });
-    if (ok) {
-      this.router.navigate(['/dashboard']);
-    } else {
-      this.error.set('User with the same username or email already exists');
-    }
   }
 }

@@ -1,80 +1,86 @@
-import { Injectable, signal, computed } from '@angular/core';
-import { User, LoginRequest, RegisterRequest } from '../models/user';
+import { Injectable, computed, inject, signal } from '@angular/core';
+import { HttpClient } from '@angular/common/http';
+import { catchError, map, Observable, of, switchMap, tap } from 'rxjs';
+import { API_BASE_URL } from './api';
+import { AuthTokens, LoginRequest, RegisterRequest, User } from '../models/user';
 
 @Injectable({ providedIn: 'root' })
 export class AuthService {
+  private http = inject(HttpClient);
   private currentUser = signal<User | null>(null);
 
   user = this.currentUser.asReadonly();
   isLoggedIn = computed(() => !!this.currentUser());
 
   constructor() {
-    const stored = this.getStoredUser();
-    if (stored) {
-      this.currentUser.set(stored);
+    if (this.getAccessToken()) {
+      const storedUser = this.getStoredUser();
+      if (storedUser) {
+        this.currentUser.set(storedUser);
+      }
+      this.fetchCurrentUser().subscribe();
     }
   }
 
-  login(req: LoginRequest): boolean {
-    const users = this.getUsers();
-    const found = users.find(u => u.username === req.username);
-    if (found) {
-      found.token = 'mock-jwt-' + Date.now();
-      this.currentUser.set(found);
-      this.storeUser(found);
-      return true;
-    }
-    return false;
+  login(req: LoginRequest): Observable<boolean> {
+    return this.http.post<AuthTokens>(`${API_BASE_URL}/auth/login/`, req).pipe(
+      tap(tokens => this.storeTokens(tokens)),
+      switchMap(() => this.fetchCurrentUser()),
+      map(() => true),
+      catchError(() => of(false)),
+    );
   }
 
-  register(req: RegisterRequest): boolean {
-    const users = this.getUsers();
-    if (users.find(u => u.username === req.username || u.email === req.email)) {
-      return false;
-    }
-    const newUser: User = {
-      id: users.length + 1,
-      username: req.username,
-      email: req.email,
-      first_name: req.first_name,
-      last_name: req.last_name,
-      token: 'mock-jwt-' + Date.now()
-    };
-    users.push(newUser);
-    this.storeUsers(users);
-    this.currentUser.set(newUser);
-    this.storeUser(newUser);
-    return true;
+  register(req: RegisterRequest): Observable<boolean> {
+    return this.http.post(`${API_BASE_URL}/auth/register/`, req).pipe(
+      switchMap(() => this.login({ username: req.username, password: req.password })),
+      catchError(() => of(false)),
+    );
   }
 
   logout(): void {
     this.currentUser.set(null);
-    try { sessionStorage.removeItem('ft_user'); } catch {}
+    localStorage.removeItem('ft_user');
+    localStorage.removeItem('ft_access_token');
+    localStorage.removeItem('ft_refresh_token');
+  }
+
+  fetchCurrentUser(): Observable<User | null> {
+    if (!this.getAccessToken()) {
+      this.currentUser.set(null);
+      return of(null);
+    }
+
+    return this.http.get<User>(`${API_BASE_URL}/auth/me/`).pipe(
+      tap(user => {
+        this.currentUser.set(user);
+        this.storeUser(user);
+      }),
+      map(user => user),
+      catchError(() => {
+        this.logout();
+        return of(null);
+      }),
+    );
   }
 
   private getStoredUser(): User | null {
     try {
-      const s = sessionStorage.getItem('ft_user');
+      const s = localStorage.getItem('ft_user');
       return s ? JSON.parse(s) : null;
     } catch { return null; }
   }
 
   private storeUser(u: User): void {
-    try { sessionStorage.setItem('ft_user', JSON.stringify(u)); } catch {}
+    try { localStorage.setItem('ft_user', JSON.stringify(u)); } catch {}
   }
 
-  private getUsers(): User[] {
-    try {
-      const s = sessionStorage.getItem('ft_users');
-      return s ? JSON.parse(s) : [
-        { id: 1, username: 'demo', email: 'demo@example.com', first_name: 'Demo', last_name: 'User' }
-      ];
-    } catch {
-      return [{ id: 1, username: 'demo', email: 'demo@example.com', first_name: 'Demo', last_name: 'User' }];
-    }
+  private storeTokens(tokens: AuthTokens): void {
+    localStorage.setItem('ft_access_token', tokens.access);
+    localStorage.setItem('ft_refresh_token', tokens.refresh);
   }
 
-  private storeUsers(users: User[]): void {
-    try { sessionStorage.setItem('ft_users', JSON.stringify(users)); } catch {}
+  private getAccessToken(): string | null {
+    return localStorage.getItem('ft_access_token');
   }
 }

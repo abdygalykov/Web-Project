@@ -55,11 +55,12 @@ export class BudgetList {
       amount,
       month: now.getMonth(),
       year: now.getFullYear(),
+    }).subscribe(budget => {
+      if (budget) this.showForm.set(false);
     });
-    this.showForm.set(false);
   }
 
   deleteBudget(id: number): void {
-    this.budgetService.delete(id);
+    this.budgetService.delete(id).subscribe();
   }
 }

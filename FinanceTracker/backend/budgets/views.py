@@ -1,5 +1,3 @@
-from django.shortcuts import render
-
 from rest_framework import viewsets
 from rest_framework.views import APIView
 from rest_framework.response import Response
@@ -16,7 +14,11 @@ class BudgetViewSet(viewsets.ModelViewSet):
         return Budget.objects.filter(user=self.request.user)
 
     def perform_create(self, serializer):
-        serializer.save(user=self.request.user)
+        from datetime import date
+
+        month = int(self.request.data.get('month', date.today().month - 1))
+        year = int(self.request.data.get('year', date.today().year))
+        serializer.save(user=self.request.user, month=date(year, month + 1, 1))
 
 
 class SummaryView(APIView):
