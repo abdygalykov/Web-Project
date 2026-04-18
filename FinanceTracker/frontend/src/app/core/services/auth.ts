@@ -1,6 +1,6 @@
 import { Injectable, computed, inject, signal } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
-import { catchError, map, Observable, of, switchMap, tap } from 'rxjs';
+import { catchError, map, Observable, of, switchMap, tap, throwError } from 'rxjs';
 import { API_BASE_URL } from './api';
 import { AuthTokens, LoginRequest, RegisterRequest, User } from '../models/user';
 
@@ -34,7 +34,10 @@ export class AuthService {
   register(req: RegisterRequest): Observable<boolean> {
     return this.http.post(`${API_BASE_URL}/auth/register/`, req).pipe(
       switchMap(() => this.login({ username: req.username, password: req.password })),
-      catchError(() => of(false)),
+      catchError((error) => {
+        console.error('Registration failed', error);
+        return throwError(() => error);
+      }),
     );
   }
 

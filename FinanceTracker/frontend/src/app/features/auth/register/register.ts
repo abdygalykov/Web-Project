@@ -1,6 +1,7 @@
 import { Component, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
+import { HttpErrorResponse } from '@angular/common/http';
 import { AuthService } from '../../../core/services/auth';
 
 @Component({
@@ -44,12 +45,39 @@ export class Register {
       password_confirm: this.passwordConfirm,
       first_name: this.firstName || this.username,
       last_name: this.lastName || '',
-    }).subscribe(ok => {
-      this.loading.set(false);
-      if (ok) {
-        this.router.navigate(['/dashboard']);
-      } else {
-        this.error.set('User with the same username or email already exists');
+    }).subscribe({
+      next: (ok) => {
+        this.loading.set(false);
+        if (ok) {
+          this.router.navigate(['/dashboard']);
+        } else {
+          this.error.set('Registration completed, but login failed. Try logging in manually.');
+        }
+      },
+      error: (err: HttpErrorResponse) => {
+        this.loading.set(false);
+        const serverError = err.error;
+        if (typeof serverError === 'string') {
+          this.error.set(serverError);
+          return;
+        }
+        if (serverError?.email?.length) {
+          this.error.set(serverError.email[0]);
+          return;
+        }
+        if (serverError?.username?.length) {
+          this.error.set(serverError.username[0]);
+          return;
+        }
+        if (serverError?.non_field_errors?.length) {
+          this.error.set(serverError.non_field_errors[0]);
+          return;
+        }
+        if (serverError?.detail) {
+          this.error.set(serverError.detail);
+          return;
+        }
+        this.error.set('Registration failed. Please try again.');
       }
     });
   }
