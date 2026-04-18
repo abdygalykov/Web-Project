@@ -36,7 +36,7 @@ jobs:
         run: npm install --include=dev
 
       - name: Build site
-        run: ./node_modules/.bin/ng build --base-href /Web-Project/
+        run: node ./node_modules/@angular/cli/bin/ng.js build --base-href /Web-Project/
 
       - name: Add SPA fallback
         run: cp dist/site/browser/index.html dist/site/browser/404.html
