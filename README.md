@@ -33,4 +33,30 @@ This project uses **Angular** for the frontend and **Django** for the backend, p
 ```bash
 git clone https://github.com/username/finance-tracker.git
 cd finance-tracker
+```
 
+## Public link for the site
+
+The frontend can be published automatically to GitHub Pages after a push to `main`.
+
+Expected public URL:
+
+```bash
+https://abdygalykov.github.io/Web-Project/
+```
+
+### What changed
+
+- Added `.github/workflows/deploy-pages.yml` for automatic deployment
+- Added Angular hash routing for correct work on static hosting
+- Added `npm run build:pages` for GitHub Pages build
+
+### How to enable it once on GitHub
+
+1. Push the latest changes to the `main` branch.
+2. Open repository `Settings` on GitHub.
+3. Go to `Pages`.
+4. In `Build and deployment`, choose `GitHub Actions`.
+5. Wait until the `Deploy GitHub Pages` workflow finishes.
+
+After that, the site will be available by the public link above and you will no longer need to show it from your local terminal.
