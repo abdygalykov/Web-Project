@@ -3,7 +3,7 @@ FROM node:22-bookworm-slim AS frontend-builder
 WORKDIR /app/FinanceTracker/frontend
 
 COPY FinanceTracker/frontend/package.json FinanceTracker/frontend/package-lock.json ./
-RUN npm ci
+RUN npm install
 
 COPY FinanceTracker/frontend/ ./
 RUN node ./node_modules/@angular/cli/bin/ng.js build
